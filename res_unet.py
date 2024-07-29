@@ -107,7 +107,7 @@ def resunet():
     #model.summary()
     
 
-    model.compile(optimizer=Adam(lr=1e-5), loss= dice_loss, metrics=METRICS)
+    model.compile(optimizer=Adam(learning_rate=1e-5), loss= dice_loss, metrics=METRICS)
     
     pretrained_weights = None
 

@@ -123,7 +123,7 @@ def r2unet():
     conv10 = Conv2D(1, (1, 1), activation='sigmoid')(add9)
     model = Model(inputs=[inputs], outputs=[conv10])
     #model.summary()
-    model.compile(optimizer=Adam(lr=1e-5), loss= dice_loss, metrics=METRICS)
+    model.compile(optimizer=Adam(learning_rate=1e-5), loss= dice_loss, metrics=METRICS)
     pretrained_weights = None
 
     if(pretrained_weights):

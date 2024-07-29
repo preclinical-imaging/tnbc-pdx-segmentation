@@ -12,7 +12,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from tensorflow.keras import backend as K
 import numpy as np
-from matplotlb import pyplot as plt
+from matplotlib import pyplot as plt
 from tensorflow.keras.metrics import Precision, Recall, AUC, Accuracy
 
 
@@ -124,7 +124,7 @@ def r2udensenet():
     conv10 = Conv2D(1, (1, 1), activation='sigmoid')(dense9)
     model = Model(inputs=[inputs], outputs=[conv10])
     #model.summary()
-    model.compile(optimizer=Adam(lr=1e-5), loss= dice_loss, metrics=METRICS)
+    model.compile(optimizer=Adam(learning_rate=1e-5), loss= dice_loss, metrics=METRICS)
     pretrained_weights = None
 
     if(pretrained_weights):
