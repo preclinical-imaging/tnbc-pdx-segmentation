@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import datetime
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -59,11 +60,13 @@ def main():
     try:
         pipeline = SegmentationPipeline(**kwargs)
         pipeline.run_pipeline()
+
+        dt = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
         for (series, segmentation_tup) in pipeline.dicom_segmentations.items():
             series_short = series.split('.')[-1]
             for (fp, seg_ds) in segmentation_tup:
                 upload_to_xnat(kwargs['host'], kwargs['username'], kwargs['password'], kwargs['project'],
-                               kwargs['session_id'], f'DR2UnetSegmentation_{series_short}', fp)
+                               kwargs['session_id'], f'DR2UnetSegmentation_{series_short}_{dt}', fp)
 
     except Exception as e:
         logging.error('Error running pipeline: %s', e)
