@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pydicom
 import tensorflow as tf
+import hashlib
 from pydicom.sr.codedict import codes
 from sklearn.metrics import precision_recall_curve
 from sklearn.preprocessing import binarize
@@ -23,6 +24,10 @@ logging.captureWarnings(True)
 
 class SegmentationPipeline:
 
+    T1_IMAGE = 'T1'
+    T2_IMAGE = 'T2'
+    UNK_IMAGE = 'UNK'
+
     def __init__(self, input_dir: str, output_dir: str, weight_dir: str, model: str = 'r2udensenet', **kwargs):
         logging.info('Initializing TNBC Segmentation Pipeline')
         logging.debug(f'Input directory: {input_dir}, Output directory: {output_dir}, '
@@ -36,6 +41,7 @@ class SegmentationPipeline:
         self.segmentation_model: tf.keras.Model | None = None
         self.segmentation_masks: np.ndarray | None = None
         self.dicom_series: dict = collections.defaultdict(list)
+        self.dicom_series_types: dict | None = None
         self.dicom_files: dict = collections.defaultdict(list)
         self.dicom_segmentations: dict = collections.defaultdict(list)
         self.qc_fig = None
@@ -58,6 +64,7 @@ class SegmentationPipeline:
 
         # Sort DICOM files into a dictionary for each series
         dicom_series = collections.defaultdict(list)
+        dicom_series_types = {}
         for fp in dicom_files:
             ds = pydicom.dcmread(fp)
 
@@ -68,11 +75,38 @@ class SegmentationPipeline:
             series = ds.SeriesInstanceUID
             dicom_series[series].append((fp, ds))
 
+            # Need to determine which series is T1 and which is T2 for the model
+            if 't1' in ds.SeriesDescription.lower() or 't1' in ds.ProtocolName.lower() or 't1' in ds.SequenceName.lower():
+                dicom_series_types[series] = self.T1_IMAGE
+            elif 't2' in ds.SeriesDescription.lower() or 't2' in ds.ProtocolName.lower() or 't2' in ds.SequenceName.lower():
+                dicom_series_types[series] = self.T2_IMAGE
+            else:
+                dicom_series_types[series] = self.UNK_IMAGE
+
         # Sort the files and series by InstanceNumber
         for series, datasets in dicom_series.items():
             dicom_series[series] = sorted(datasets, key=lambda x: x[1].InstanceNumber)
 
+        # Log if T1 and T2 series are not found
+        errors = []
+        if self.T1_IMAGE not in dicom_series_types.values():
+            logging.error('No T1 series found')
+            errors.append('No T1 series found')
+
+        if self.T2_IMAGE not in dicom_series_types.values():
+            logging.error('No T2 series found')
+            errors.append('No T2 series found')
+
+        if errors:
+            raise ValueError(errors)
+
+        # Log if no series are found
+        if len(dicom_series) == 0:
+            logging.error('No series found')
+            raise ValueError('No series found')
+
         self.dicom_series = dicom_series
+        self.dicom_series_types = dicom_series_types
 
         # All series should have the same number of files
         series_lengths = set([len(datasets) for datasets in dicom_series.values()])
@@ -121,7 +155,23 @@ class SegmentationPipeline:
         # Load and normalize by series
         for i, (series, datasets) in reversed(list(enumerate(self.dicom_series.items()))):
             normalized_images = self.normalize_images([ds for (fp, ds) in datasets])
-            images[:, :, :, i] = normalized_images
+
+            # T2 images are the first channel, T1 images are the second channel
+            if self.dicom_series_types[series] == self.T1_IMAGE:
+                images[:, :, :, 1] = normalized_images
+            elif self.dicom_series_types[series] == self.T2_IMAGE:
+                images[:, :, :, 0] = normalized_images
+            else:
+                logging.error(f'Unknown image type for series {series}, not T1 or T2, skipping series')
+
+        images = images.astype('float32')
+        hash_md5 = hashlib.md5(images.tobytes()).hexdigest()
+
+        logging.debug(f'Preprocessed images shape: {images.shape}')
+        logging.debug(f'Preprocessed images type: {images.dtype}')
+        logging.debug(f'Preprocessed images min: {np.min(images)}')
+        logging.debug(f'Preprocessed images max: {np.max(images)}')
+        logging.debug(f'Preprocessed images md5 hash: {hash_md5}')
 
         self.preprocessed_images = images
 
