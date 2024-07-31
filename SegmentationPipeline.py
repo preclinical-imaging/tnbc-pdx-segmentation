@@ -218,8 +218,9 @@ class SegmentationPipeline:
 
             seg_dataset.SeriesDescription = 'DR2UNet Segmentation'
 
-            # Delete PatientWeight tag to avoid downstream issues with XNAT OHIF viewer
+            # Delete some tags to avoid downstream issues with XNAT OHIF viewer
             delattr(seg_dataset, 'PatientWeight')
+            delattr(seg_dataset, 'PatientAge')
 
             series_short = series.split('.')[-1]
             output_path = f'{self.output_dir}/mask_{series_short}.dcm'
