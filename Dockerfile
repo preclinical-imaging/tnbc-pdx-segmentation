@@ -1,4 +1,4 @@
-FROM xnat/tensorflow-notebook:JHP-76
+FROM xnat/tensorflow-notebook:develop
 
 USER root
 
