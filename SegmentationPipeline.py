@@ -18,11 +18,6 @@ from new_r2unet import r2unet
 from res_unet import resunet
 from unet import unet_model
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
-logging.getLogger('keras').setLevel(logging.ERROR)
-logging.getLogger('pydicom').setLevel(logging.ERROR)
-logging.getLogger('highdicom').setLevel(logging.ERROR)
 logging.captureWarnings(True)
 
 
@@ -241,36 +236,62 @@ class SegmentationPipeline:
         Plot the first, middle, and last slice of each series with the segmentation mask overlayed.
         """
 
-        fig, axs = plt.subplots(len(self.dicom_series), 3, figsize=(15, 10 * len(self.dicom_series)))
-        fig.subplots_adjust(wspace=0.3, hspace=0.3)
+        # Five images per row for each series
+        col = 4
+        rows = int(np.ceil(self.series_length / col))
+
+        if rows < 2:
+            rows = 2
+            col = 3
+
+        rows = rows * len(self.dicom_series)
+
+        logging.info(f'Visualizing segmentation masks with {rows} rows and {col} columns')
+
+        fig, axs = plt.subplots(rows, col, figsize=(20, 4 * rows))
+        fig.subplots_adjust(wspace=0.01, hspace=0.03)
 
         for i, (series, datasets) in enumerate(self.dicom_series.items()):
-            image = self.preprocessed_images[0, :, :, i]
-            mask = self.segmentation_masks[0, :, :]
-            pixel_aspect_ratio = datasets[0][1].PixelAspectRatio.as_integer_ratio()
-            axs[i, 0].imshow(image, cmap=plt.cm.gray)
-            axs[i, 0].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
-            axs[i, 0].axis('off')
-            axs[i, 0].title.set_text(f'Series {i + 1} - First Slice')
-            axs[i, 0].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
+            for j, (fp, ds) in enumerate(datasets):
+                r = (j // col) + (i * rows // len(self.dicom_series))
+                c = j % col
 
-            image = self.preprocessed_images[len(datasets) // 2, :, :, i]
-            mask = self.segmentation_masks[len(datasets) // 2, :, :]
-            pixel_aspect_ratio = datasets[len(datasets) // 2][1].PixelAspectRatio.as_integer_ratio()
-            axs[i, 1].imshow(image, cmap=plt.cm.gray)
-            axs[i, 1].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
-            axs[i, 1].axis('off')
-            axs[i, 1].title.set_text(f'Series {i + 1} - Middle Slice')
-            axs[i, 1].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
+                logging.debug(f'Plotting series {series} slice {j} at row {r} column {c}')
 
-            image = self.preprocessed_images[-1, :, :, i]
-            mask = self.segmentation_masks[-1, :, :]
-            pixel_aspect_ratio = datasets[-1][1].PixelAspectRatio.as_integer_ratio()
-            axs[i, 2].imshow(image, cmap=plt.cm.gray)
-            axs[i, 2].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
-            axs[i, 2].axis('off')
-            axs[i, 2].title.set_text(f'Series {i + 1} - Last Slice')
-            axs[i, 2].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
+                image = self.preprocessed_images[j, :, :, i]
+                mask = self.segmentation_masks[j, :, :]
+                pixel_aspect_ratio = ds.PixelAspectRatio.as_integer_ratio()
+                axs[r, c].imshow(image, cmap=plt.cm.gray)
+                axs[r, c].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
+                axs[r, c].axis('off')
+                axs[r, c].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
+
+            # image = self.preprocessed_images[0, :, :, i]
+            # mask = self.segmentation_masks[0, :, :]
+            # pixel_aspect_ratio = datasets[0][1].PixelAspectRatio.as_integer_ratio()
+            # axs[i, 0].imshow(image, cmap=plt.cm.gray)
+            # axs[i, 0].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
+            # axs[i, 0].axis('off')
+            # axs[i, 0].title.set_text(f'Series {i + 1} - First Slice')
+            # axs[i, 0].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
+            #
+            # image = self.preprocessed_images[len(datasets) // 2, :, :, i]
+            # mask = self.segmentation_masks[len(datasets) // 2, :, :]
+            # pixel_aspect_ratio = datasets[len(datasets) // 2][1].PixelAspectRatio.as_integer_ratio()
+            # axs[i, 1].imshow(image, cmap=plt.cm.gray)
+            # axs[i, 1].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
+            # axs[i, 1].axis('off')
+            # axs[i, 1].title.set_text(f'Series {i + 1} - Middle Slice')
+            # axs[i, 1].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
+            #
+            # image = self.preprocessed_images[-1, :, :, i]
+            # mask = self.segmentation_masks[-1, :, :]
+            # pixel_aspect_ratio = datasets[-1][1].PixelAspectRatio.as_integer_ratio()
+            # axs[i, 2].imshow(image, cmap=plt.cm.gray)
+            # axs[i, 2].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
+            # axs[i, 2].axis('off')
+            # axs[i, 2].title.set_text(f'Series {i + 1} - Last Slice')
+            # axs[i, 2].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
 
         if save:
             plt.savefig(f'{self.output_dir}/segmentation.png')
