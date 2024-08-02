@@ -22,4 +22,3 @@ seaborn==0.11.0
 tables==3.6.1
 tensorflow==2.0.0
 tensorflow-gpu==2.0.0
-lxml
