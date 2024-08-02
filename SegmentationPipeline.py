@@ -60,7 +60,7 @@ class SegmentationPipeline:
         # Get all DICOM files in the input directory
         dicom_files = [str(p) for p in Path(self.input_dir).rglob('*.dcm')]
 
-        logging.debug(f'Found {len(dicom_files)} DICOM files')
+        logging.info(f'Found {len(dicom_files)} DICOM files')
 
         # Sort DICOM files into a dictionary for each series
         dicom_series = collections.defaultdict(list)
@@ -70,6 +70,7 @@ class SegmentationPipeline:
 
             # Skip files without a SeriesInstanceUID or not of modality 'MR'
             if not hasattr(ds, 'SeriesInstanceUID') or ds.Modality != 'MR':
+                logging.warning(f'Skipping file {fp} without SeriesInstanceUID or not of modality MR')
                 continue
 
             series = ds.SeriesInstanceUID
@@ -130,6 +131,8 @@ class SegmentationPipeline:
         """
         Load the segmentation model.
         """
+        logging.info(f'Loading segmentation model: {self.model}')
+
         switcher = {
             'denseunet': denseunet,
             'unet': unet_model,
@@ -167,11 +170,11 @@ class SegmentationPipeline:
         images = images.astype('float32')
         hash_md5 = hashlib.md5(images.tobytes()).hexdigest()
 
-        logging.debug(f'Preprocessed images shape: {images.shape}')
-        logging.debug(f'Preprocessed images type: {images.dtype}')
-        logging.debug(f'Preprocessed images min: {np.min(images)}')
-        logging.debug(f'Preprocessed images max: {np.max(images)}')
-        logging.debug(f'Preprocessed images md5 hash: {hash_md5}')
+        logging.info(f'Preprocessed images shape: {images.shape}')
+        logging.info(f'Preprocessed images type: {images.dtype}')
+        logging.info(f'Preprocessed images min: {np.min(images)}')
+        logging.info(f'Preprocessed images max: {np.max(images)}')
+        logging.info(f'Preprocessed images md5 hash: {hash_md5}')
 
         self.preprocessed_images = images
 
@@ -318,33 +321,6 @@ class SegmentationPipeline:
                 axs[r, c].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
                 axs[r, c].axis('off')
                 axs[r, c].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
-
-            # image = self.preprocessed_images[0, :, :, i]
-            # mask = self.segmentation_masks[0, :, :]
-            # pixel_aspect_ratio = datasets[0][1].PixelAspectRatio.as_integer_ratio()
-            # axs[i, 0].imshow(image, cmap=plt.cm.gray)
-            # axs[i, 0].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
-            # axs[i, 0].axis('off')
-            # axs[i, 0].title.set_text(f'Series {i + 1} - First Slice')
-            # axs[i, 0].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
-            #
-            # image = self.preprocessed_images[len(datasets) // 2, :, :, i]
-            # mask = self.segmentation_masks[len(datasets) // 2, :, :]
-            # pixel_aspect_ratio = datasets[len(datasets) // 2][1].PixelAspectRatio.as_integer_ratio()
-            # axs[i, 1].imshow(image, cmap=plt.cm.gray)
-            # axs[i, 1].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
-            # axs[i, 1].axis('off')
-            # axs[i, 1].title.set_text(f'Series {i + 1} - Middle Slice')
-            # axs[i, 1].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
-            #
-            # image = self.preprocessed_images[-1, :, :, i]
-            # mask = self.segmentation_masks[-1, :, :]
-            # pixel_aspect_ratio = datasets[-1][1].PixelAspectRatio.as_integer_ratio()
-            # axs[i, 2].imshow(image, cmap=plt.cm.gray)
-            # axs[i, 2].imshow(mask, cmap=plt.cm.jet, alpha=0.2)
-            # axs[i, 2].axis('off')
-            # axs[i, 2].title.set_text(f'Series {i + 1} - Last Slice')
-            # axs[i, 2].set_aspect(pixel_aspect_ratio[1] / pixel_aspect_ratio[0])
 
         if save:
             plt.savefig(f'{self.output_dir}/segmentation.png')
